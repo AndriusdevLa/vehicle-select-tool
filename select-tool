@@ -1,0 +1,1248 @@
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { TopbarService } from 'src/app/dashboard/topbar.service';
+import { CatalogsService } from 'src/app/shared/models/catalogs/catalogs.service';
+import { take } from 'rxjs'
+import { Presets } from 'src/app/shared/models/catalogs/presets.model';
+import { ApiError } from 'src/app/shared/@core/interfaces/error.interface';
+import { ToastService } from 'src/app/shared/services/toast.service';
+import { PartPresetCatalogItem } from 'src/app/shared/models/catalogs/parts-preset-catalog-item.model';
+import { FormControl } from '@angular/forms';
+import { MatCheckboxChange } from '@angular/material/checkbox';
+import { AuthService } from 'src/app/shared/models/auth/auth.service';
+import { PresetItem } from 'src/app/shared/models/catalogs/preset-item.model';
+
+export enum VehicleSide {
+  Front = 'Front',
+  Back = 'Back',
+  RightSide = 'RightSide',
+  LeftSide = 'LeftSide',
+  Top = 'Top',
+  Bottom = 'Bottom'
+}
+
+
+export enum VehiclePresetKeys {
+  FrontWindow = '1.1',
+  FrontHood = '1.2',
+  FrontLeftHeadlight = '1.3',
+  FrontRightHeadlight = '1.4',
+  FrontBamper = '1.5',
+
+  BackWindow = '4.1',
+  BackHood = '4.2',
+  BackLeftHeadlight = '4.3',
+  BackRightHeadlight = '4.4',
+  BackBamper = '4.5',
+
+  RightSideFront = '2.1',
+  RightSideFrontWheel = '2.2',
+  RightSideFrontDoor = '2.3',
+  RightSideBackDoor = '2.4',
+  RightSideBack = '2.5',
+  RightSideBackWheel = '2.6',
+
+  LeftSideFront = '3.1',
+  LeftSideFrontWheel = '3.2',
+  LeftSideFrontDoor = '3.3',
+  LeftSideBackDoor = '3.4',
+  LeftSideBack = '3.5',
+  LeftSideBackWheel = '3.6',
+
+  TopFrontWindow = '1.1',
+  TopFrontHood = '1.2',
+  TopRoof = '5.3',
+  TopBackWindow = '4.1',
+  TopBackHood = '4.2',
+
+  BottomFront = '6.1',
+  BottomCenter = '6.2',
+  BottomBack = '6.3'
+}
+
+
+export enum SVGClasses {
+  Hovered = 'hovered',
+  HoveredLight = 'hovered-light',
+  HoveredDark = 'hovered-dark',
+  SelectedLight = 'selected-light',
+  SelectedMedium = 'selected-medium',
+  SelectedDark = 'selected-dark',
+
+  PartialDamage = 'partial-damage',
+  FullDamage = 'full-damage',
+}
+
+export enum DamageType {
+  PartialDamage = 'Partial damage',
+  FullDamage = 'Full damage',
+  NoDamage = 'No damage'
+}
+
+
+export const elementMapping: { [side: string]: { [key: string]: string[] } } = {
+  [VehicleSide.Front]: {
+    [VehiclePresetKeys.FrontWindow]: ['1.1.1', '1.1.2'],
+    [VehiclePresetKeys.FrontHood]: ['1.2.1', '1.2.2', '1.2.3'],
+    [VehiclePresetKeys.FrontLeftHeadlight]: ['1.3.1', '1.3.2', '1.3.3'],
+    [VehiclePresetKeys.FrontRightHeadlight]: ['1.4.1', '1.4.2', '1.4.3'],
+    [VehiclePresetKeys.FrontBamper]: ['1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.5.5'],
+  },
+  [VehicleSide.Back]: {
+    [VehiclePresetKeys.BackWindow]: ['4.1.1'],
+    [VehiclePresetKeys.BackHood]: ['4.2.1', '4.2.2', '4.2.3', '4.2.4', '4.2.5'],
+    [VehiclePresetKeys.BackLeftHeadlight]: ['4.3.1', '4.3.2'],
+    [VehiclePresetKeys.BackRightHeadlight]: ['4.4.1', '4.4.2'],
+    [VehiclePresetKeys.BackBamper]: ['4.5.1', '4.5.2', '4.5.3', '4.5.4'],
+  },
+  [VehicleSide.LeftSide]: {
+    [VehiclePresetKeys.LeftSideFront]: ['3.1.1'],
+    [VehiclePresetKeys.LeftSideFrontWheel]: ['3.2.1', '3.2.2', '3.2.3', '3.2.4'],
+    [VehiclePresetKeys.LeftSideFrontDoor]: ['3.3.1', '3.3.2', '3.3.3', '3.3.4', '3.3.5', '3.3.6', '3.3.7', '3.3.8'],
+    [VehiclePresetKeys.LeftSideBackDoor]: ['3.4.1', '3.4.2', '3.4.3', '3.4.4', '3.4.5'],
+    [VehiclePresetKeys.LeftSideBack]: ['3.5.1'],
+    [VehiclePresetKeys.LeftSideBackWheel]: ['3.6.1', '3.6.2', '3.6.3', '3.6.4'],
+  },
+  [VehicleSide.RightSide]: {
+    [VehiclePresetKeys.RightSideFront]: ['2.1.1'],
+    [VehiclePresetKeys.RightSideFrontWheel]: ['2.2.1', '2.2.2', '2.2.3', '2.2.4'],
+    [VehiclePresetKeys.RightSideFrontDoor]: ['2.3.1', '2.3.2', '2.3.3', '2.3.4', '2.3.5', '2.3.6', '2.3.7', '2.3.8'],
+    [VehiclePresetKeys.RightSideBackDoor]: ['2.4.1', '2.4.2', '2.4.3', '2.4.4', '2.4.5'],
+    [VehiclePresetKeys.RightSideBack]: ['2.5.1'],
+    [VehiclePresetKeys.RightSideBackWheel]: ['2.6.1', '2.6.2', '2.6.3', '2.6.4'],
+  },
+  [VehicleSide.Top]: {
+    [VehiclePresetKeys.TopFrontHood]: ['1.2.1', '1.2.2', '1.2.3', '1.2.4'],
+    [VehiclePresetKeys.TopFrontWindow]: ['1.1.1'],
+    [VehiclePresetKeys.TopRoof]: ['5.3.1', '5.3.2'],
+    [VehiclePresetKeys.TopBackWindow]: ['4.1.1'],
+    [VehiclePresetKeys.TopBackHood]: ['4.2.1', '4.2.2'],
+  },
+  [VehicleSide.Bottom]: {
+    [VehiclePresetKeys.BottomFront]: ['6.1.1', '6.1.2'],
+    [VehiclePresetKeys.BottomCenter]: ['6.2.1', '6.2.2', '6.2.3'],
+    [VehiclePresetKeys.BottomBack]: ['6.3.1', '6.3.2', '6.3.3'],
+  },
+};
+
+
+@Component({
+  selector: 'app-sell-whole',
+  templateUrl: './sell-whole.component.html',
+  styleUrls: ['./sell-whole.component.scss']
+})
+export class SellWholeComponent implements OnInit {
+  public VehicleSide = VehicleSide;
+  public activeTabIndex = 0;
+  public loading: boolean = true;
+  public presets: Presets;
+
+  public activeSelectionPresets: PartPresetCatalogItem[] = [];
+  public selectedPresetItems: PartPresetCatalogItem[] = [];
+
+  public allActiveSelectionPresets: PartPresetCatalogItem[] = [];
+  public allSelectedPresetItems: PartPresetCatalogItem[] = [];
+
+
+  public damages: PartPresetCatalogItem[] = [];
+  public selectedDamagesItems: PartPresetCatalogItem[] = [];
+  public allSelectedChecked: boolean = true;
+
+  public VehiclePresetKeys = VehiclePresetKeys;
+
+  public carSelections: { url: string, side: VehicleSide, label: string }[] = [
+    {
+      url: './../../../../../../assets/images/dismantle-car/front-car.svg',
+      side: VehicleSide.Front,
+      label: 'Front'
+    },
+    {
+      url: './../../../../../../assets/images/dismantle-car/back-car.svg',
+      side: VehicleSide.Back,
+      label: 'Back'
+    },
+    {
+      url: './../../../../../../assets/images/dismantle-car/left-side-car.svg',
+      side: VehicleSide.LeftSide,
+      label: 'Left side'
+    },
+    {
+      url: './../../../../../../assets/images/dismantle-car/right-side-car.svg',
+      side: VehicleSide.RightSide,
+      label: 'Right side'
+    },
+    {
+      url: './../../../../../../assets/images/dismantle-car/top-side-car.svg',
+      side: VehicleSide.Top,
+      label: 'Top'
+    },
+    {
+      url: './../../../../../../assets/images/dismantle-car/bottom-side-car.svg',
+      side: VehicleSide.Bottom,
+      label: 'Bottom'
+    }
+  ]
+
+
+  public selectedSide: VehicleSide = VehicleSide.Front;
+  constructor(private topbarService: TopbarService, private route: ActivatedRoute, private router: Router,
+    private catalogService: CatalogsService, private toastService: ToastService,
+    private authService: AuthService) {
+    this.topbarService.setBreadcrumbs([
+      {
+        label: 'cars',
+        path: '/admin/cars/all-cars',
+        arrow: true,
+      },
+      {
+        label: 'dismantle car',
+        path: '/admin/cars/dismantle-car',
+      },
+    ]);
+  }
+
+  ngOnInit(): void {
+    this.getPresets();
+  }
+
+
+  public selectCatalogItem(event) {
+    console.log(event);
+  }
+
+  public selectDamagesSide(item: { url: string, side: VehicleSide, label: string }) {
+    if (this.selectedSide !== item.side) {
+      this.activeSelectionPresets = [];
+    }
+    this.selectedSide = item.side;
+    setTimeout(() => {
+      if (item.side == VehicleSide.Front) {
+        this.selectPresetFront(VehiclePresetKeys.FrontHood);
+        this.colorCurrentSideDamages();
+      }
+      if (item.side == VehicleSide.Back) {
+        this.selectPresetBack(VehiclePresetKeys.BackHood);
+        this.colorCurrentSideDamages();
+      }
+      if (item.side == VehicleSide.LeftSide) {
+        this.selectPresetLeftSide(VehiclePresetKeys.LeftSideFrontDoor);
+        this.colorCurrentSideDamages();
+      }
+      if (item.side == VehicleSide.RightSide) {
+        this.selectPresetRightSide(VehiclePresetKeys.RightSideFrontDoor);
+        this.colorCurrentSideDamages();
+      }
+      if (item.side == VehicleSide.Top) {
+        this.selectPresetTopSide(VehiclePresetKeys.TopFrontHood);
+        this.colorCurrentSideDamages();
+      }
+      if (item.side == VehicleSide.Bottom) {
+        this.selectPresetBottomSide(VehiclePresetKeys.BottomCenter);
+        this.colorCurrentSideDamages();
+      }
+    }, 200)
+
+    
+  }
+
+  public getPresets() {
+    this.loading = true;
+    this.catalogService.getPresets().pipe(take(1)).subscribe({
+      next: (response: Presets) => {
+        this.presets = response;
+        const length = this.presets?.content?.length;
+        for (let i = 0; i < length; i++) {
+          const itemsLenght = this.presets.content[i].items?.length;
+          for (let x = 0; x < itemsLenght; x++) {
+            this.presets.content[i].items[x].selected = true;
+
+          }
+        }
+      },
+      error: (error: ApiError) => {
+        this.loading = false;
+        this.toastService.showToast(`${error.code} Error`, error.message.constructor === Array ? error.message[0] : error.message, 'top-right', 'danger');
+      },
+      complete: () => {
+        this.loading = false;
+        this.selectPresetFront(VehiclePresetKeys.FrontHood);
+        this.colorCurrentSideDamages();
+      }
+    })
+
+  }
+
+
+
+  public selectAllPresetItems() {
+    const length = this.activeSelectionPresets?.length;
+    for (let i = 0; i < length; i++) {
+      if (!this.activeSelectionPresets[i].inDamagesArray) {
+        this.activeSelectionPresets[i].selected = true;
+        const presetItemIndex = this.selectedPresetItems.findIndex(child => child.id === this.activeSelectionPresets[i].id);
+        if (presetItemIndex == -1) {
+          this.selectedPresetItems.push(this.activeSelectionPresets[i]);
+        }
+      }
+    }
+  }
+
+  public deselectAllPresetItems() {
+    const length = this.activeSelectionPresets?.length;
+    for (let i = 0; i < length; i++) {
+      if (!this.activeSelectionPresets[i].inDamagesArray) {
+        this.activeSelectionPresets[i].selected = false;
+        this.selectedPresetItems = [];
+      }
+    }
+  }
+
+
+
+  public selectAllDamagedItems() {
+    const length = this.damages?.length;
+    for (let i = 0; i < length; i++) {
+      if (this.damages[i].inDamagesArray) {
+        this.damages[i].selectedInDamaged = true;
+        const presetItemIndex = this.selectedDamagesItems.findIndex(child => child.id === this.damages[i].id);
+        if (presetItemIndex == -1) {
+          this.selectedDamagesItems.push(this.damages[i]);
+        }
+      }
+    }
+  }
+
+  public deselectAllDamagedItems() {
+    const length = this.damages?.length;
+    for (let i = 0; i < length; i++) {
+      if (this.damages[i].inDamagesArray) {
+        this.damages[i].selectedInDamaged = false;
+        this.selectedDamagesItems = [];
+      }
+    }
+  }
+
+  private determineDamageTypeStatus(activeSelectionPresets: PartPresetCatalogItem[]): DamageType {
+    let numSelected = 0;
+    let numUnselected = 0;
+
+    for (let item of activeSelectionPresets) {
+      if (item.selected) {
+        numSelected++;
+      } else {
+        numUnselected++;
+      }
+    }
+
+    if (numSelected === 0) {
+      return DamageType.NoDamage;
+    } else if (numSelected === activeSelectionPresets.length) {
+      return DamageType.FullDamage;
+    } else {
+      return DamageType.PartialDamage;
+    }
+  }
+
+  public colorCurrentSideDamages() {
+    const currentMapping = elementMapping[this.selectedSide];
+    const currentKeys = Object.keys(currentMapping);
+
+    const currentSideDamages: PartPresetCatalogItem[] = this.damages.filter((damage) => {
+      return currentKeys.includes(damage.parentKey);
+    });
+    this.colorSVGDamages(currentSideDamages as PartPresetCatalogItem[]);
+
+  }
+
+  public addSelectedPresetItemsToDamages() {
+    const length = this.selectedPresetItems?.length;
+    for (let i = 0; i < length; i++) {
+      this.selectedPresetItems[i].inDamagesArray = true;
+      this.selectedPresetItems[i].selectedInDamaged = false;
+    }
+    const newDamagesArray = [...this.damages, ...this.selectedPresetItems]
+    this.damages = newDamagesArray;
+
+    for (let i = 0; i < length; i++) {
+      if (!this.selectedPresetItems[i].inDamagesArray) {
+        this.selectedPresetItems[i].selected = false;
+
+      }
+    }
+    this.selectedPresetItems = [];
+    // this.colorSVGDamages(this.activeSelectionPresets[0].parentKey, this.determineDamageTypeStatus(this.activeSelectionPresets) as DamageType);
+    this.colorCurrentSideDamages();
+  }
+
+  public removeSelectedDamages() {
+
+    const newDamagesArray = this.removeDuplicateArray(this.damages, this.selectedDamagesItems);
+    const length = this.selectedDamagesItems?.length;
+    for (let i = 0; i < length; i++) {
+      this.selectedDamagesItems[i].inDamagesArray = false;
+      const presetItemIndex = this.activeSelectionPresets.findIndex(child => child.id === this.selectedDamagesItems[i].id);
+
+      if (presetItemIndex !== -1) {
+        this.activeSelectionPresets[presetItemIndex].selected = false;
+      }
+
+    }
+
+    this.damages = newDamagesArray;
+    this.selectedDamagesItems = [];
+    this.colorCurrentSideDamages();
+  }
+
+  private removeDuplicateArray<T>(arr1: T[], arr2: T[]): T[] {
+    return arr1.filter((item) => !arr2.includes(item));
+  }
+
+
+  public onPresetCheckboxChange(event: MatCheckboxChange, item: PartPresetCatalogItem, index) {
+    if (event.checked) {
+      const findIndex = this.selectedPresetItems.findIndex(child => child.id === item.id);
+      if (findIndex == -1) {
+        // item.selected = true;
+        this.selectedPresetItems.push(item);
+      }
+    } else {
+      const findIndex = this.selectedPresetItems.findIndex(child => child.id === item.id);
+      if (findIndex !== -1) {
+        //  item.selected = false;
+        this.selectedPresetItems.splice(findIndex, 1);
+      }
+    }
+
+  }
+
+
+  public onAllPartsPresetCheckboxChange(childComponent: { event: MatCheckboxChange, item: PartPresetCatalogItem, index }) {
+
+
+
+  }
+
+
+  public onDamagesItemCheckboxChange(event: MatCheckboxChange, item: PartPresetCatalogItem, index) {
+    if (event.checked) {
+      const findIndex = this.selectedDamagesItems.findIndex(child => child.id === item.id);
+      if (findIndex == -1) {
+        this.selectedDamagesItems.push(item);
+      }
+    } else {
+      const findIndex = this.selectedDamagesItems.findIndex(child => child.id === item.id);
+      if (findIndex !== -1) {
+        this.selectedDamagesItems.splice(findIndex, 1);
+      }
+    }
+  }
+
+  public hoverPresetBottomSide(key: VehiclePresetKeys | any, hover: boolean) {
+    if (key == VehiclePresetKeys.BottomFront && hover) {
+      document.getElementById('6.1.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('6.1.2').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('6.1.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('6.1.2').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.BottomCenter && hover) {
+      document.getElementById('6.2.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('6.2.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('6.2.3').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('6.2.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('6.2.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('6.2.3').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.BottomBack && hover) {
+      document.getElementById('6.3.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('6.3.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('6.3.3').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('6.3.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('6.3.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('6.3.3').classList?.add(SVGClasses.Hovered);
+    }
+
+  }
+
+  public hoverPresetTopSide(key: VehiclePresetKeys | any, hover: boolean) {
+    if (key == VehiclePresetKeys.TopFrontHood && hover) {
+      document.getElementById('1.2.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('1.2.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('1.2.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('1.2.4').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('1.2.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('1.2.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('1.2.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('1.2.4').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.TopFrontWindow && hover) {
+      document.getElementById('1.1.1').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('1.1.1').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.TopRoof && hover) {
+      document.getElementById('5.3.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('5.3.2').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('5.3.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('5.3.2').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.TopBackWindow && hover) {
+      document.getElementById('4.1.1').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('4.1.1').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.TopBackHood && hover) {
+      document.getElementById('4.2.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('4.2.2').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('4.2.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('4.2.2').classList?.remove(SVGClasses.Hovered);
+    }
+  }
+
+  public hoverPresetBack(key: VehiclePresetKeys | any, hover: boolean) {
+    // BACK START
+
+    if (key == VehiclePresetKeys.BackWindow && hover) {
+      document.getElementById('4.1.1').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('4.1.1').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.BackHood && hover) {
+      document.getElementById('4.2.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('4.2.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('4.2.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('4.2.4').classList?.add(SVGClasses.Hovered);
+      document.getElementById('4.2.5').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('4.2.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('4.2.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('4.2.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('4.2.4').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('4.2.5').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.BackLeftHeadlight && hover) {
+      document.getElementById('4.3.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('4.3.2').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('4.3.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('4.3.2').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.BackRightHeadlight && hover) {
+      document.getElementById('4.4.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('4.4.2').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('4.4.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('4.4.2').classList?.remove(SVGClasses.Hovered);
+    }
+
+
+    if (key == VehiclePresetKeys.BackBamper && hover) {
+      document.getElementById('4.5.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('4.5.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('4.5.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('4.5.4').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('4.5.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('4.5.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('4.5.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('4.5.4').classList?.remove(SVGClasses.Hovered);
+    }
+
+
+    // BACK END
+  }
+
+  public hoverPresetFront(key: VehiclePresetKeys | any, hover: boolean) {
+
+    // FRONT START
+    if (key == VehiclePresetKeys.FrontWindow && hover) {
+      document.getElementById('1.1.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('1.1.2').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('1.1.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('1.1.2').classList?.remove(SVGClasses.Hovered);
+    }
+
+
+    if (key == VehiclePresetKeys.FrontHood && hover) {
+      document.getElementById('1.2.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('1.2.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('1.2.3').classList?.add(SVGClasses.Hovered);
+
+    } else {
+      document.getElementById('1.2.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('1.2.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('1.2.3').classList?.remove(SVGClasses.Hovered);
+    }
+
+
+    if (key == VehiclePresetKeys.FrontLeftHeadlight && hover) {
+      document.getElementById('1.3.1').classList?.add(SVGClasses.HoveredLight);
+      document.getElementById('1.3.2').classList?.add(SVGClasses.HoveredLight);
+      document.getElementById('1.3.3').classList?.add(SVGClasses.HoveredLight);
+
+    } else {
+      document.getElementById('1.3.1').classList?.remove(SVGClasses.HoveredLight);
+      document.getElementById('1.3.2').classList?.remove(SVGClasses.HoveredLight);
+      document.getElementById('1.3.3').classList?.remove(SVGClasses.HoveredLight);
+    }
+
+
+    if (key == VehiclePresetKeys.FrontRightHeadlight && hover) {
+      document.getElementById('1.4.1').classList?.add(SVGClasses.HoveredLight);
+      document.getElementById('1.4.2').classList?.add(SVGClasses.HoveredLight);
+      document.getElementById('1.4.3').classList?.add(SVGClasses.HoveredLight);
+
+    } else {
+      document.getElementById('1.4.1').classList?.remove(SVGClasses.HoveredLight);
+      document.getElementById('1.4.2').classList?.remove(SVGClasses.HoveredLight);
+      document.getElementById('1.4.3').classList?.remove(SVGClasses.HoveredLight);
+    }
+
+
+    if (key == VehiclePresetKeys.FrontBamper && hover) {
+      document.getElementById('1.5.1').classList?.add(SVGClasses.HoveredLight);
+      document.getElementById('1.5.2').classList?.add(SVGClasses.HoveredLight);
+      document.getElementById('1.5.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('1.5.4').classList?.add(SVGClasses.Hovered);
+      document.getElementById('1.5.5').classList?.add(SVGClasses.Hovered);
+
+    } else {
+      document.getElementById('1.5.1').classList?.remove(SVGClasses.HoveredLight);
+      document.getElementById('1.5.2').classList?.remove(SVGClasses.HoveredLight);
+      document.getElementById('1.5.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('1.5.4').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('1.5.5').classList?.remove(SVGClasses.Hovered);
+    }
+
+    // FRONT END
+
+  }
+
+  public hoverPresetRightSide(key: VehiclePresetKeys | any, hover: boolean) {
+    if (key == VehiclePresetKeys.RightSideFront && hover) {
+      document.getElementById('2.1.1').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('2.1.1').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.RightSideFrontWheel && hover) {
+      document.getElementById('2.2.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.2.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.2.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.2.4').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('2.2.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.2.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.2.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.2.4').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.RightSideFrontDoor && hover) {
+      document.getElementById('2.3.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.3.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.3.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.3.4').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.3.5').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.3.6').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.3.7').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.3.8').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('2.3.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.3.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.3.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.3.4').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.3.5').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.3.6').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.3.7').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.3.8').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.RightSideBackDoor && hover) {
+      document.getElementById('2.4.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.4.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.4.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.4.4').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.4.5').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('2.4.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.4.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.4.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.4.4').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.4.5').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.RightSideBack && hover) {
+      document.getElementById('2.5.1').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('2.5.1').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.RightSideBackWheel && hover) {
+      document.getElementById('2.6.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.6.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.6.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('2.6.4').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('2.6.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.6.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.6.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('2.6.4').classList?.remove(SVGClasses.Hovered);
+    }
+  }
+
+  public hoverPresetLeftSide(key: VehiclePresetKeys | any, hover: boolean) {
+    //  LeftSideFront = '3.1',
+    //  LeftSideFrontWheel = '3.2',
+    //  LeftSideFrontDoor = '3.3',
+    //  LeftSideBackDoor = '3.4',
+    //  LeftSideBack = '3.5',
+    //  LeftSideBackWheel = '3.6',
+
+    if (key == VehiclePresetKeys.LeftSideFront && hover) {
+      document.getElementById('3.1.1').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('3.1.1').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.LeftSideFrontWheel && hover) {
+      document.getElementById('3.2.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.2.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.2.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.2.4').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('3.2.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.2.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.2.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.2.4').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.LeftSideFrontDoor && hover) {
+      document.getElementById('3.3.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.3.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.3.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.3.4').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.3.5').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.3.6').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.3.7').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.3.8').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('3.3.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.3.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.3.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.3.4').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.3.5').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.3.6').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.3.7').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.3.8').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.LeftSideBackDoor && hover) {
+      document.getElementById('3.4.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.4.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.4.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.4.4').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.4.5').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('3.4.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.4.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.4.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.4.4').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.4.5').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.LeftSideBack && hover) {
+      document.getElementById('3.5.1').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('3.5.1').classList?.remove(SVGClasses.Hovered);
+    }
+
+    if (key == VehiclePresetKeys.LeftSideBackWheel && hover) {
+      document.getElementById('3.6.1').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.6.2').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.6.3').classList?.add(SVGClasses.Hovered);
+      document.getElementById('3.6.4').classList?.add(SVGClasses.Hovered);
+    } else {
+      document.getElementById('3.6.1').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.6.2').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.6.3').classList?.remove(SVGClasses.Hovered);
+      document.getElementById('3.6.4').classList?.remove(SVGClasses.Hovered);
+    }
+
+  }
+
+  public selectPresetTopSide(key: VehiclePresetKeys | any) {
+    // TopFrontWindow = '1.1',
+    //  TopFrontHood = '1.2',
+    //  TopRoof = '5.3',
+    //  TopBackWindow = '4.1',
+    //  TopBackHood = '4.2',
+
+    if (key == VehiclePresetKeys.TopFrontHood && !document.getElementById('1.2.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('1.2.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('1.2.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('1.2.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('1.2.4').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('1.2.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('1.2.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('1.2.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('1.2.4').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.TopFrontWindow && !document.getElementById('1.1.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('1.1.1').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('1.1.1').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.TopRoof && !document.getElementById('5.3.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('5.3.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('5.3.2').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('5.3.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('5.3.2').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.TopBackWindow && !document.getElementById('4.1.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('4.1.1').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('4.1.1').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.TopBackHood && !document.getElementById('4.2.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('4.2.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('4.2.2').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('4.2.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('4.2.2').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    this.setPresetSelections(key);
+
+  }
+
+  public selectPresetBottomSide(key: VehiclePresetKeys | any) {
+    //  BottomFront = '6.1',
+    //  BottomCenter = '6.2',
+    //  BottomBack = '6.3'
+
+    if (key == VehiclePresetKeys.BottomFront && !document.getElementById('6.1.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('6.1.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('6.1.2').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('6.1.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('6.1.2').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.BottomCenter && !document.getElementById('6.2.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('6.2.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('6.2.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('6.2.3').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('6.2.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('6.2.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('6.2.3').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.BottomBack && !document.getElementById('6.3.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('6.3.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('6.3.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('6.3.3').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('6.3.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('6.3.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('6.3.3').classList?.add(SVGClasses.SelectedDark);
+    }
+
+    this.setPresetSelections(key);
+
+  }
+
+  public selectPresetLeftSide(key: VehiclePresetKeys | any) {
+    //  LeftSideFront = '3.1',
+    //  LeftSideFrontWheel = '3.2',
+    //  LeftSideFrontDoor = '3.3',
+    //  LeftSideBackDoor = '3.4',
+    //   LeftSideBack = '3.5',
+    //   LeftSideBackWheel = '3.6',
+
+    if (key == VehiclePresetKeys.LeftSideFront && !document.getElementById('3.1.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('3.1.1').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('3.1.1').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.LeftSideFrontWheel && !document.getElementById('3.2.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('3.2.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.2.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.2.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.2.4').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('3.2.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.2.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.2.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.2.4').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.LeftSideFrontDoor && !document.getElementById('3.3.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('3.3.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.3.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.3.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.3.4').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.3.5').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.3.6').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.3.7').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.3.8').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('3.3.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.3.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.3.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.3.4').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.3.5').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.3.6').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.3.7').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.3.8').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.LeftSideBackDoor && !document.getElementById('3.4.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('3.4.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.4.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.4.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.4.4').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.4.5').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('3.4.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.4.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.4.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.4.4').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.4.5').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.LeftSideBack && !document.getElementById('3.5.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('3.5.1').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('3.5.1').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.LeftSideBackWheel && !document.getElementById('3.6.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('3.6.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.6.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.6.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('3.6.4').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('3.6.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.6.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.6.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('3.6.4').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    this.setPresetSelections(key);
+
+  }
+
+  public selectPresetRightSide(key: VehiclePresetKeys | any) {
+    //   RightSideFront = '2.1',
+    //   RightSideFrontWheel = '2.2',
+    //   RightSideFrontDoor = '2.3',
+    //   RightSideBackDoor = '2.4',
+    //   RightSideBack = '2.5',
+    //   RightSideBackWheel = '2.6',
+
+    if (key == VehiclePresetKeys.RightSideFront && !document.getElementById('2.1.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('2.1.1').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('2.1.1').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.RightSideFrontWheel && !document.getElementById('2.2.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('2.2.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.2.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.2.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.2.4').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('2.2.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.2.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.2.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.2.4').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.RightSideFrontDoor && !document.getElementById('2.3.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('2.3.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.3.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.3.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.3.4').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.3.5').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.3.6').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.3.7').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.3.8').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('2.3.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.3.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.3.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.3.4').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.3.5').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.3.6').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.3.7').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.3.8').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.RightSideBackDoor && !document.getElementById('2.4.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('2.4.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.4.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.4.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.4.4').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.4.5').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('2.4.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.4.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.4.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.4.4').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.4.5').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.RightSideBack && !document.getElementById('2.5.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('2.5.1').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('2.5.1').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.RightSideBackWheel && !document.getElementById('2.6.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('2.6.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.6.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.6.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('2.6.4').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('2.6.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.6.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.6.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('2.6.4').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    this.setPresetSelections(key);
+  }
+
+  public selectPresetBack(key: VehiclePresetKeys | any) {
+    // ==== BACK ====
+    // BACK WINDOW KEY 4.1, elements : 4.1.1
+    // BACK HOOD KEY 4.2, elements: 4.2.1, 4.2.2, 4.2.3, 4.2.5, 4.2.6
+    // BACK LEFT HEADLIGHTS KEY 4.3, elements : 4.3.1, 4.3.2
+    // BACK RIGHT HEADLIGHTS KEY 4.4, elements : 4.4.1, 4.4.2
+    // BACK MIDDLE KEY 4.5, elements 4.5.1, 4.5.2, 4.5.3, 4.5.4
+
+    if (key == VehiclePresetKeys.BackWindow && !document.getElementById('4.1.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('4.1.1').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('4.1.1').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.BackHood && !document.getElementById('4.2.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('4.2.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('4.2.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('4.2.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('4.2.4').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('4.2.5').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('4.2.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('4.2.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('4.2.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('4.2.4').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('4.2.5').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.BackLeftHeadlight && !document.getElementById('4.3.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('4.3.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('4.3.2').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('4.3.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('4.3.2').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.BackRightHeadlight && !document.getElementById('4.4.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('4.4.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('4.4.2').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('4.4.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('4.4.2').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+
+    if (key == VehiclePresetKeys.BackBamper && !document.getElementById('4.5.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('4.5.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('4.5.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('4.5.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('4.5.4').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('4.5.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('4.5.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('4.5.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('4.5.4').classList?.remove(SVGClasses.SelectedDark);
+    }
+    this.setPresetSelections(key);
+  }
+
+
+
+  public selectPresetFront(key: VehiclePresetKeys | any) {
+    // ==== FRONT ====
+    // WINDOW KEY 1.1, elements : 1.1.1, 1.1.2
+    // KAPOTAS KEY 1.2 , elements : 1.2.1 , 1.2.2, 1.2.3
+    // LEFT HEADLIGHT 1.3, elements : 1.3.1, 1.3.2, 1.3.3
+    // RIGHT HEADLIGHT 1.4, elements : 1.4.1, 1.4.2, 1.4.3
+    // BAMPER 1.5, elements, 1.5.1, 1.5.2, 1.5.3, 1.5.4, 1.5.5
+
+    if (key == VehiclePresetKeys.FrontWindow && !document.getElementById('1.1.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('1.1.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('1.1.2').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('1.1.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('1.1.2').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+
+
+    if (key == VehiclePresetKeys.FrontHood && !document.getElementById('1.2.1').classList?.contains(SVGClasses.SelectedDark)) {
+      document.getElementById('1.2.1').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('1.2.2').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('1.2.3').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('1.2.1').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('1.2.2').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('1.2.3').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    if (key == VehiclePresetKeys.FrontLeftHeadlight && !document.getElementById('1.3.1').classList?.contains(SVGClasses.SelectedLight)) {
+      document.getElementById('1.3.1').classList?.add(SVGClasses.SelectedLight);
+      document.getElementById('1.3.2').classList?.add(SVGClasses.SelectedLight);
+      document.getElementById('1.3.3').classList?.add(SVGClasses.SelectedLight);
+    } else {
+      document.getElementById('1.3.1').classList?.remove(SVGClasses.SelectedLight);
+      document.getElementById('1.3.2').classList?.remove(SVGClasses.SelectedLight);
+      document.getElementById('1.3.3').classList?.remove(SVGClasses.SelectedLight);
+    }
+
+    if (key == VehiclePresetKeys.FrontRightHeadlight && !document.getElementById('1.4.1').classList?.contains(SVGClasses.SelectedLight)) {
+      document.getElementById('1.4.1').classList?.add(SVGClasses.SelectedLight);
+      document.getElementById('1.4.2').classList?.add(SVGClasses.SelectedLight);
+      document.getElementById('1.4.3').classList?.add(SVGClasses.SelectedLight);
+    } else {
+      document.getElementById('1.4.1').classList?.remove(SVGClasses.SelectedLight);
+      document.getElementById('1.4.2').classList?.remove(SVGClasses.SelectedLight);
+      document.getElementById('1.4.3').classList?.remove(SVGClasses.SelectedLight);
+    }
+    if (key == VehiclePresetKeys.FrontBamper && !document.getElementById('1.5.1').classList?.contains(SVGClasses.SelectedLight)) {
+      document.getElementById('1.5.1').classList?.add(SVGClasses.SelectedLight);
+      document.getElementById('1.5.2').classList?.add(SVGClasses.SelectedLight);
+      document.getElementById('1.5.3').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('1.5.4').classList?.add(SVGClasses.SelectedDark);
+      document.getElementById('1.5.5').classList?.add(SVGClasses.SelectedDark);
+    } else {
+      document.getElementById('1.5.1').classList?.remove(SVGClasses.SelectedLight);
+      document.getElementById('1.5.2').classList?.remove(SVGClasses.SelectedLight);
+      document.getElementById('1.5.3').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('1.5.4').classList?.remove(SVGClasses.SelectedDark);
+      document.getElementById('1.5.5').classList?.remove(SVGClasses.SelectedDark);
+    }
+
+    this.setPresetSelections(key);
+  }
+
+
+
+
+  private setPresetSelections(key: VehiclePresetKeys | any) {
+    const length = this.presets?.content?.length;
+    for (let i = 0; i < length; i++) {
+      if (this.presets?.content[i].key == key) {
+        if (JSON.stringify(this.activeSelectionPresets) === JSON.stringify(this.presets.content[i].items)) {
+          this.activeSelectionPresets = [];
+          break;
+        } else {
+
+          const itemsToPreselectFromPreset = [];
+          const lengthOfChildItems = this.presets?.content[i].items?.length;
+          for (let x = 0; x < lengthOfChildItems; x++) {
+            this.presets.content[i].items[x].parentKey = this.presets?.content[i].key;
+            this.presets.content[i].items[x].parentName = this.presets?.content[i].name;
+            this.presets.content[i].items[x].selected = true;
+            if (!this.presets.content[i].items[x].inDamagesArray) {
+              itemsToPreselectFromPreset.push(this.presets.content[i].items[x]);
+            }
+          }
+
+          this.activeSelectionPresets = [...this.presets.content[i].items];
+          this.selectedPresetItems = [...itemsToPreselectFromPreset]
+          break;
+        }
+      }
+    }
+  }
+
+
+  public colorSVGDamages(currentSideDamages: PartPresetCatalogItem[]) {
+    // 1. Group all currentSideDamages by parentKey
+    const groupedDamages: { [parentKey: string]: {damages: PartPresetCatalogItem[], damageType?: DamageType, parentKey?: VehiclePresetKeys, childKeys?: string[] }} = {};
+    currentSideDamages.forEach((damage) => {
+      if (!groupedDamages[damage.parentKey]) {
+        groupedDamages[damage.parentKey] = {damages: []};
+        groupedDamages[damage.parentKey].childKeys = elementMapping[this.selectedSide][damage.parentKey];
+      }
+      groupedDamages[damage.parentKey].damages.push(damage);
+      groupedDamages[damage.parentKey].parentKey = damage.parentKey;
+    const parentPreset: PresetItem[] =  this.presets.content.filter(preset => preset.key === damage.parentKey);
+    const allPartsNumber = parentPreset[0].items?.length;
+    const currentDamagesNumber = groupedDamages[damage.parentKey]?.damages?.length;
+
+    if(currentDamagesNumber === 0){
+      groupedDamages[damage.parentKey].damageType = DamageType.NoDamage;
+    } else if(currentDamagesNumber == allPartsNumber){
+      groupedDamages[damage.parentKey].damageType = DamageType.FullDamage;
+    } else {
+      groupedDamages[damage.parentKey].damageType = DamageType.PartialDamage;
+    }
+    });
+
+    // 2. Color svg of damages :
+    for(const key in groupedDamages){
+      const isDamage = groupedDamages[key].damageType === DamageType.PartialDamage || groupedDamages[key].damageType === DamageType.FullDamage;
+      const svgClass = groupedDamages[key].damageType === DamageType.PartialDamage ? SVGClasses.PartialDamage : SVGClasses.FullDamage;
+      
+      if (this.selectedSide in elementMapping) {
+        const sideElementMapping = elementMapping[this.selectedSide];
+        const elements = sideElementMapping[key];
+        if (elements) {
+          elements.forEach((elementId) => this.toggleElementClass(elementId, svgClass, isDamage));
+        }
+      }
+    }  
+  }
+  
+
+
+  private toggleElementClass(elementId: string, svgClass: string, isDamage: boolean) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    if (isDamage) {
+      element.classList.remove(SVGClasses.PartialDamage, SVGClasses.FullDamage)
+      element.classList.add(svgClass);
+    } else {
+      element.classList.remove(SVGClasses.PartialDamage, SVGClasses.FullDamage);
+    }
+  }
+
+
+}
